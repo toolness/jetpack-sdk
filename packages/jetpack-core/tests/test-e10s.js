@@ -57,3 +57,6 @@ exports.testStartMainWithNonexistentModule = makeConsoleTest({
     ["exception", "Error: Unknown module 'nonexistent-module'."]
   ]
 });
+
+// TODO: Test core:exception receiver.
+// TODO: Test console:trace receiver.
