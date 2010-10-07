@@ -40,7 +40,13 @@ function makeConsoleTest(options) {
 
 exports.testStartMain = makeConsoleTest({
   main: "e10s-samples/hello-world",
-  expect: [["log", "hello", "world"]]
+  expect: [
+    ["log", "hello", "world"],
+    ["info", "sup", "dogg"],
+    ["warn", "how", "r", "u"],
+    ["debug", "gud"],
+    ["error", "NO U"]
+  ]
 });
 
 exports.testStartMainWithNonexistentModule = makeConsoleTest({
