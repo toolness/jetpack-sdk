@@ -73,6 +73,10 @@ parser_options = {
                              type="json",
                              metavar=None,
                              default="{}"),
+    ("", "--e10s",): dict(dest="enable_e10s",
+                          help="enable out-of-process Jetpacks",
+                          action="store_true",
+                          default=False)
     }
 
 parser_groups = Bunch(
@@ -545,7 +549,7 @@ def run(arguments=sys.argv[1:], target_cfg=None, pkg_cfg=None,
 
     harness_options.update(build)
 
-    inherited_options = ['verbose']
+    inherited_options = ['verbose', 'enable_e10s']
 
     if use_main:
         harness_options['main'] = target_cfg.get('main')

@@ -234,6 +234,8 @@ function buildHarnessService(rootFileSpec, dump, logError,
       return options;
     },
 
+    enableE10s: options.enable_e10s,
+
     jetpackID: options.jetpackID,
 
     bundleID: options.bundleID,
