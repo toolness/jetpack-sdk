@@ -4,4 +4,5 @@ exports.main = function() {
   console.warn("how", "r", "u");
   console.debug("gud");
   console.error("NO U");
+  console.log({toString: function() { throw new Error(); }});
 };

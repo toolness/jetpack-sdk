@@ -45,7 +45,8 @@ exports.testStartMain = makeConsoleTest({
     ["info", "sup", "dogg"],
     ["warn", "how", "r", "u"],
     ["debug", "gud"],
-    ["error", "NO U"]
+    ["error", "NO U"],
+    ["log", "<toString() error>"]
   ]
 });
 
