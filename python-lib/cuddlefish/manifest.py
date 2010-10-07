@@ -5,6 +5,11 @@ COMMENT_PREFIXES = ["//", "/*", "*", "\'", "\""]
 
 REQUIRE_RE = r"(?<![\'\"])require\s*\(\s*[\'\"]([^\'\"]+?)[\'\"]\s*\)"
 
+# detect the require.def idiom of the form:
+#   require.def("module name", ["dep1", "dep2", "dep3"], function() {})
+# by capturing the contents of the list in a group.
+REQUIRE_DEF_RE = re.compile(r"require\.def\s*\([\'\"][^\'\"]+[\'\"]\s*,\s*\[([^\]]+)\]")
+
 def scan_requirements_with_grep(fn, lines):
     requires = set()
     for line in lines:
@@ -20,6 +25,18 @@ def scan_requirements_with_grep(fn, lines):
             if mo:
                 modname = mo.group(1)
                 requires.add(mo.group(1))
+
+    # require.def can happen across multiple lines, so join everyone up.
+    wholeshebang = "\n".join(lines)
+    for match in REQUIRE_DEF_RE.finditer(wholeshebang):
+        # this should net us a list of string literals separated by commas
+        for strbit in match.group(1).split(","):
+            strbit = strbit.strip()
+            # There could be a trailing comma netting us just whitespace, so
+            # filter that out.
+            if strbit:
+                requires.add(strbit[1:-1])
+
     return requires
 
 MUST_ASK_FOR_CHROME =  """\

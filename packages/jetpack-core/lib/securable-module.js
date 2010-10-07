@@ -193,11 +193,22 @@
      this.securityPolicy = options.securityPolicy;
    };
 
+   //START Patch to support RequireJS-style
+   var ostring = Object.prototype.toString;
+   function isFunction(it) {
+     return ostring.call(it) === "[object Function]";
+   }
+   function isArray(it) {
+     return ostring.call(it) === "[object Array]";
+   }
+   //END Patch to support RequireJS-style
+
    exports.Loader.prototype = {
      _makeRequire: function _makeRequire(basePath) {
        var self = this;
 
-       return function require(module) {
+       //Patch to support RequireJS-style removed the return from next line
+       function require(module) {
          var exports;
 
          if (self.getModuleExports)
@@ -224,10 +235,16 @@
                sandbox.defineProperty(name, self.globals[name]);
              sandbox.defineProperty('require', self._makeRequire(path));
              sandbox.evaluate("var exports = {};");
-             self.modules[path] = sandbox.getProperty("exports");
+             exports = sandbox.getProperty("exports");
              if (self.modifyModuleSandbox)
-               self.modifyModuleSandbox(sandbox, options);
+               self.modifyModuleSandbox(sandbox, options, module);
              sandbox.evaluate(options);
+
+             //If a require.def call did not define the module, assume
+             //exports is in play.
+             if (!self.modules[path]) {
+               self.modules[path] = exports;
+             }
            }
            exports = self.modules[path];
          }
@@ -239,6 +256,121 @@
 
          return exports;
        };
+
+       //START Patch to support RequireJS-style require and require.def calls.
+       //It basically just allows the callback style used in RequireJS,
+       //it DOES NOT support the following from RequireJS:
+       //contexts, config, plugins, require.modify, page load support.
+
+       /**
+        * Main entry point.
+        *
+        * If the only argument to require is a string, then the module that
+        * is represented by that string is fetched for the appropriate context.
+        *
+        * If the first argument is an array, then it will be treated as an array
+        * of dependency string names to fetch. An optional function callback can
+        * be specified to execute when all of those dependencies are available.
+        */
+       function requirejs(deps, callback) {
+         if (typeof deps === "string" && !isFunction(callback)) {
+           //Just return the module wanted. In this scenario, the
+           //second arg (if passed) is just the contextName.
+           return require(deps);
+         }
+
+         //Do more work, let the def function handle it.
+         return requirejs.def.apply(require, arguments);
+       }
+
+        /**
+         * The function that handles definitions of modules. Differs from
+         * require() in that a string for the module should be the first argument,
+         * and the function to execute after dependencies are loaded should
+         * return a value to define the module corresponding to the first argument's
+         * name.
+         */
+        requirejs.def = function (name, deps, callback) {
+
+            //Normalize the arguments.
+            if (typeof name === "string") {
+                //Check if there are no dependencies, and adjust args.
+                if (!isArray(deps)) {
+                    callback = deps;
+                    deps = [];
+                }
+            } else if (isArray(name)) {
+                //Just some code that has dependencies. Adjust args accordingly.
+                callback = deps;
+                deps = name;
+                name = null;
+            } else if (isFunction(name)) {
+                //Just a function that does not define a module and
+                //does not have dependencies. Useful if just want to wait
+                //for whatever modules are in flight and execute some code after
+                //those modules load.
+                callback = name;
+                name = null;
+                deps = [];
+            }
+
+            //Set up the path if we have a name
+            if (name) {
+                var namePath = self.fs.resolveModule(basePath, name);
+            }
+
+            //If the callback is not an actual function, it means it already
+            //has the definition of the module as a literal value.
+            if (name && callback && !isFunction(callback) && !self.modules[namePath]) {
+                self.modules[namePath] = callback;
+                return requirejs;
+            }
+
+            //Load all the dependencies.
+            var depModules = [], exports = {}, usesExports = false, exported;
+            deps.forEach(function (dep) {
+                if (dep === "require") {
+                    depModules.push(requirejs);
+                } else if (dep === "module") {
+                    depModules.push({
+                        id: name
+                    });
+                } else if (dep === "exports") {
+                    usesExports = true;
+                    depModules.push(exports);
+                } else {
+                    var overridden;
+                    if (self.getModuleExports)
+                      overridden = self.getModuleExports(basePath, dep);
+                    if (overridden) {
+                      depModules.push(overridden);
+                      return;
+                    }
+
+                    var depPath = self.fs.resolveModule(basePath, dep);
+
+                    if (!self.modules[depPath]) {
+                        require(dep);
+                    }
+                    depModules.push(self.modules[depPath]);
+                }
+            });
+
+            //Execute the function.
+            if (callback) {
+                exported = callback.apply(null, depModules);
+            }
+
+            //Assign output of function to name, if exports is not in play.
+            if (name) {
+                self.modules[namePath] = usesExports ? exports : exported;
+            }
+
+            return requirejs;
+        };
+
+       return requirejs;
+       //END Patch to support RequireJS-style
      },
 
      // This is only really used by unit tests and other

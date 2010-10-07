@@ -98,7 +98,10 @@
      };
    }
 
-   function modifyModuleSandbox(sandbox, options) {
+   function modifyModuleSandbox(sandbox, options, module) {
+     // Let's not infinitely recurse.
+     if (module === 'es5')
+       return;
      let ES5 = this.require('es5');
      if ('init' in ES5) {
        let { Object, Array, Function } = sandbox.globalScope;
@@ -116,7 +119,7 @@
          }
          let mi = packaging.getModuleInfo(basePath);
          if (mi.needsChrome)
-           /* The module requires chrome, it can import whatever it 
+           /* The module requires chrome, it can import whatever it
             * wants. */
            return true;
          if (!mi.dependencies) {
@@ -128,7 +131,7 @@
                return true; /* they're on the list: allow the require() */
            }
          }
-         loader.console.warn("undeclared require(" + module + 
+         loader.console.warn("undeclared require(" + module +
                              ") called from " + basePath);
          //return false;  // enable this in 0.9
          return true;
