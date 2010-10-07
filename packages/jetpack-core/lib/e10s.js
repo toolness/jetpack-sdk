@@ -81,7 +81,11 @@ function makeScriptFrom(moduleURL) {
 var defaultConsole = console;
 
 exports.createProcess = function createProcess(options) {
+  if (!options)
+    options = {};
+
   var process = new JetpackProcess();
+
   var console = options.console ? options.console : defaultConsole;
 
   // Whenever our add-on is disabled or uninstalled, we want to
