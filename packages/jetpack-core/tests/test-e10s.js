@@ -4,6 +4,9 @@ function makeConsoleTest(options) {
   return function(test) {
     var actions = [];
 
+    if (options.setup)
+      options.setup(test);
+
     function addAction(action) {
       actions.push(action);
       test.assertEqual(JSON.stringify(actions[actions.length-1]),
@@ -55,6 +58,37 @@ exports.testStartMainWithNonexistentModule = makeConsoleTest({
   expect: [
     ["log", "An exception occurred in the child Jetpack process."],
     ["exception", "Error: Unknown module 'nonexistent-module'."]
+  ]
+});
+
+exports.testRemoteSyntaxError = makeConsoleTest({
+  main: "e10s-samples/syntax-error",
+  expect: [
+    ["log", "An exception occurred in the child Jetpack process."],
+    ["exception", "Error: uncaught exception: SyntaxError: missing ;" +
+                  " before statement"]
+  ]
+});
+
+exports.testRemoteException = makeConsoleTest({
+  main: "e10s-samples/thrown-exception",
+  expect: [
+    ["log", "An exception occurred in the child Jetpack process."],
+    ["exception", "Error: alas"]
+  ]
+});
+
+exports.testE10sAdapter = makeConsoleTest({
+  main: "e10s-samples/superpower-client",
+  setup: function(test) {
+    require("e10s-samples/superpower").setDelegate(function(a, b) {      
+      test.assertEqual(JSON.stringify([a, b]),
+                       JSON.stringify(["hello", "there"]));
+      return "thanks dude";
+    });
+  },
+  expect: [
+    ["log", "superpower.use returned", "thanks dude"]
   ]
 });
 
