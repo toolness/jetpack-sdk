@@ -4,6 +4,8 @@ exports.main = function(options, callbacks) {
   console.warn("how", "r", "u");
   console.debug("gud");
   console.error("NO U");
+  console.exception(new Error("o snap"));
   console.log({toString: function() { throw new Error(); }});
+  console.trace();
   callbacks.quit();
 };

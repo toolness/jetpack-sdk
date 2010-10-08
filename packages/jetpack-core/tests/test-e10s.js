@@ -14,8 +14,11 @@ function makeConsoleTest(options) {
         return;
       }
       actions.push(action);
-      test.assertEqual(JSON.stringify(action),
-                       JSON.stringify(options.expect[actions.length-1]));
+      var expected = options.expect[actions.length-1];
+      if (typeof(expected) == "function")
+        expected(test, action);
+      else
+        test.assertEqual(JSON.stringify(action), JSON.stringify(expected));
       if (options.expect.length == actions.length &&
           action[0] == "exception") {
         process.destroy();
@@ -61,7 +64,15 @@ exports.testStartMain = makeConsoleTest({
     ["warn", "how", "r", "u"],
     ["debug", "gud"],
     ["error", "NO U"],
+    ["exception", "Error: o snap"],
     ["log", "<toString() error>"],
+    function testConsoleTrace(test, action) {
+      test.assertEqual(action[0], "log",
+                       "remote console.trace() issues " +
+                       "local console.log()");
+      test.assertMatches(action[1], /^Traceback /,
+                         "remote console.trace logs traceback");
+    },
     ["quit", "OK"]
   ]
 });
@@ -106,8 +117,6 @@ exports.testE10sAdapter = makeConsoleTest({
   ]
 });
 
-// TODO: Test core:exception receiver.
-// TODO: Test console:trace receiver.
 // TODO: Test e10s-adapter unavailability (access denied).
 // TODO: Test e10s-adapter availability when no corresponding
 //       chrome module exists.
