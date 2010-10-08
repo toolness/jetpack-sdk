@@ -1,4 +1,5 @@
 var e10s = require('e10s');
+var timer = require('timer');
 
 function makeConsoleTest(options) {
   return function(test) {
@@ -8,16 +9,20 @@ function makeConsoleTest(options) {
       options.setup(test);
 
     function addAction(action) {
+      if (options.expect.length == actions.length) {
+        test.fail("Didn't expect another action: " + JSON.stringify(action));
+        return;
+      }
       actions.push(action);
-      test.assertEqual(JSON.stringify(actions[actions.length-1]),
+      test.assertEqual(JSON.stringify(action),
                        JSON.stringify(options.expect[actions.length-1]));
-
-      // TODO: It'd be nice to keep going w/ the remote process and
-      // make sure it doesn't log more stuff.
-      if (options.expect.length == actions.length)
+      if (options.expect.length == actions.length &&
+          action[0] == "exception") {
+        process.destroy();
         test.done();
+      }
     }
-  
+
     function msg(name, args) {
       var action = [name];
       for (var i = 0; i < args.length; i++)
@@ -35,7 +40,14 @@ function makeConsoleTest(options) {
       fakeConsole[name] = function() { msg(name, arguments); };
     });
 
-    var process = e10s.createProcess({console: fakeConsole});
+    var process = e10s.createProcess({
+      console: fakeConsole,
+      quit: function(status) {
+        addAction(["quit", status]);
+        process.destroy();
+        test.done();
+      }
+    });
     process.sendMessage("startMain", options.main);
     test.waitUntilDone();
   };
@@ -49,7 +61,8 @@ exports.testStartMain = makeConsoleTest({
     ["warn", "how", "r", "u"],
     ["debug", "gud"],
     ["error", "NO U"],
-    ["log", "<toString() error>"]
+    ["log", "<toString() error>"],
+    ["quit", "OK"]
   ]
 });
 
@@ -88,7 +101,8 @@ exports.testE10sAdapter = makeConsoleTest({
     });
   },
   expect: [
-    ["log", "superpower.use returned", "thanks dude"]
+    ["log", "superpower.use returned", "thanks dude"],
+    ["quit", "OK"]
   ]
 });
 

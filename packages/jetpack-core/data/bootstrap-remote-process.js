@@ -126,11 +126,16 @@ function require(name) {
 
 registerReceiver(
   "startMain",
-  function(name, mainName, options, callbacks) {
+  function(name, mainName, options) {
     var main = require(mainName);
 
-    // TODO: Callbacks will just be handles, we need to actually turn
-    // them into functions.
+    var callbacks = {
+      quit: function quit(status) {
+        if (status === undefined)
+          status = "OK";
+        sendMessage("quit", status);
+      }
+    };
 
     if ('main' in main)
       main.main(options, callbacks);

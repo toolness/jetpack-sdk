@@ -34,7 +34,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-let {Cc, Ci} = require('chrome');
+let {Cc, Ci, Cr} = require('chrome');
 
 let url = require("url");
 let file = require("file");
@@ -59,7 +59,9 @@ function JetpackProcess() {
   };
 
   this.destroy = function() {
-    process.destroy();
+    try {
+      process.destroy();
+    } catch (e if e.result == Cr.NS_ERROR_NOT_INITIALIZED) {}
   };
 
   this.eval = function(urlObj) {
@@ -114,6 +116,11 @@ exports.createProcess = function createProcess(options) {
     };
   }
   
+  process.registerReceiver("quit", function(name, status) {
+    if (options.quit)
+      options.quit(status);
+  });
+
   process.registerReceiver("console:trace", function(name, exception) {
     var traceback = require("traceback");
     var stack = traceback.fromException(remoteException(exception));

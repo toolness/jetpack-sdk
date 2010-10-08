@@ -1,3 +1,7 @@
 var superpower = require("e10s-samples/superpower");
 
-console.log("superpower.use returned", superpower.use("hello", "there"));
+exports.main = function(options, callbacks) {
+  console.log("superpower.use returned",
+              superpower.use("hello", "there"));
+  callbacks.quit();
+}
