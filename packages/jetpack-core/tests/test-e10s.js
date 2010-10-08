@@ -95,3 +95,5 @@ exports.testE10sAdapter = makeConsoleTest({
 // TODO: Test core:exception receiver.
 // TODO: Test console:trace receiver.
 // TODO: Test e10s-adapter unavailability (access denied).
+// TODO: Test e10s-adapter availability when no corresponding
+//       chrome module exists.
