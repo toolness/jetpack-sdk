@@ -53,7 +53,7 @@ The set of open browser windows
 **Example**
 
     var windows = require("windows");
-    for each (window in windows.browserWindows) {
+    for each (var window in windows.browserWindows) {
       console.log(window.title);
     }
 
@@ -71,7 +71,7 @@ An object containing configurable options for how this window will be opened,
 as well as a callback for being notified when the window has fully opened.
 
 If the only option being used is `url`, then a bare string URL can be passed to
-`open` instead of specifying it as a property of the `options` object.
+`openWindow` instead of specifying it as a property of the `options` object.
 
 @prop url {string}
 String URL to be opened in the new window.
@@ -82,6 +82,13 @@ A callback function that is called when the window has opened. This does not
 mean that the URL content has loaded, only that the window itself is fully
 functional and its properties can be accessed. This is an optional property.
 
+@prop [onClose] {function}
+A callback function that is called when the window will be called.
+This is an optional property.
+
+@prop [onReady] {function}
+A callback function that is called when the URL content has loaded. This is an
+optional property.
 </api>
 
 **Example**
@@ -154,6 +161,11 @@ This property is read-only.
 An object representing all the open tabs on the window. This object
 has all the properties and methods of the `tabs` module.
 This property is read-only.
+</api>
+
+<api name="focus">
+@method
+Makes window active
 </api>
 
 <api name="close">
