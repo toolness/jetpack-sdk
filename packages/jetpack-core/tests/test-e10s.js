@@ -127,5 +127,10 @@ exports.testAccessDeniedToLoadModule = makeConsoleTest({
   ]
 });
 
-// TODO: Test e10s-adapter availability when no corresponding
-//       chrome module exists.
+exports.testAdapterOnlyModule = makeConsoleTest({
+  main: "e10s-samples/adapter-only-client",
+  expect: [
+    ["log", "hello 1 5"],
+    ["quit", "OK"]
+  ]
+});
