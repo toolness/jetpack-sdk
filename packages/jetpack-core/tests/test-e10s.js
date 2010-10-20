@@ -117,6 +117,15 @@ exports.testE10sAdapter = makeConsoleTest({
   ]
 });
 
-// TODO: Test e10s-adapter unavailability (access denied).
+exports.testAccessDeniedToLoadModule = makeConsoleTest({
+  main: "e10s-samples/chrome-only-module-client",
+  expect: [
+    ["log", "An exception occurred in the child Jetpack process."],
+    ["exception",
+     "Error: Module 'e10s-samples/chrome-only-module' requires " +
+     "chrome privileges and has no e10s adapter."]
+  ]
+});
+
 // TODO: Test e10s-adapter availability when no corresponding
 //       chrome module exists.
