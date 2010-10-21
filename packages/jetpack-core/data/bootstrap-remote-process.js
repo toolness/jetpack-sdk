@@ -76,58 +76,73 @@ var memory = {
 
 var modules = {};
 
-function require(name) {
-  // TODO: Support relative imports.
-  if (name && name[0] != "." && name in modules)
-    return modules[name].exports;
+function makeRequire(base) {
+  var resolvedNames = {};  
 
-  var response = callMessage("require", name)[0];
-  switch (response.code) {
-  case "not-found":
-    throw new Error("Unknown module '" + name + "'.");
-  case "access-denied":
-    throw new Error("Module '" + name + "' requires chrome privileges " +
-                    "and has no e10s adapter.");
-  case "error":
-    throw new Error("An unexpected error occurred in the chrome " +
-                    "process.");
-  case "ok":
-    break;
-  default:
-    throw new Error("Internal error: unknown response code '" +
-                    response.code + "'");
+  function require(name) {
+    // first, have we already require()d this name from this base? Just
+    // re-use the module
+    if (name && name in resolvedNames)
+      return resolvedNames[name].exports;
+
+    // if not, resolve relative import names by asking the browser-process
+    // side for the URL/filename of the module this points to
+    var response = callMessage("require", base, name)[0];
+    switch (response.code) {
+    case "not-found":
+      throw new Error("Unknown module '" + name + "'.");
+    case "access-denied":
+      throw new Error("Module '" + name + "' requires chrome privileges " +
+                      "and has no e10s adapter.");
+    case "error":
+      throw new Error("An unexpected error occurred in the chrome " +
+                      "process.");
+    case "ok":
+      break;
+    default:
+      throw new Error("Internal error: unknown response code '" +
+                      response.code + "'");
+    };
+
+    // do we already have a module for this filename?
+    if (response.script.filename in modules) {
+      module = resolvedNames[name] = modules[response.script.filename];
+      return module.exports;
+    }
+
+    var module = createSandbox();
+  
+    modules[response.script.filename] = resolvedNames[name] = module;
+  
+    // Set up the globals of the sandbox.
+    module.exports = {};
+    module.console = console;
+    module.memory = memory;
+    module.require = makeRequire(response.script.filename);
+    module.__url__ = response.script.filename;
+  
+    if (response.needsMessaging)
+      ["registerReceiver",
+       "createHandle",
+       "sendMessage",
+       "callMessage"].forEach(
+         function(name) {
+           module[name] = global[name];
+         });
+  
+    evalInSandbox(module, '//@line 1 "' + response.script.filename + 
+                  '"\n' + response.script.contents);
+  
+    return module.exports;
   };
-
-  var module = createSandbox();
-
-  modules[name] = module;
-
-  // Set up the globals of the sandbox.
-  module.exports = {};
-  module.console = console;
-  module.memory = memory;
-  module.require = require;
-  module.__url__ = response.script.filename;
-
-  if (response.needsMessaging)
-    ["registerReceiver",
-     "createHandle",
-     "sendMessage",
-     "callMessage"].forEach(
-       function(name) {
-         module[name] = global[name];
-       });
-
-  evalInSandbox(module, '//@line 1 "' + response.script.filename + 
-                '"\n' + response.script.contents);
-
-  return module.exports;
-};
+  return require;
+}
 
 registerReceiver(
   "startMain",
   function(name, mainName, options) {
-    var main = require(mainName);
+    var mainRequire = makeRequire(null);
+    var main = mainRequire(mainName);
 
     var callbacks = {
       quit: function quit(status) {

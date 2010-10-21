@@ -140,16 +140,15 @@ exports.createProcess = function createProcess(options) {
 
   process.registerReceiver(
     "require",
-    function(name, path) {
-      // TODO: Add support for relative paths, e.g. ./foo.
+    function(name, base, path) {
       var parentFS = packaging.harnessService.loader.fs;
-      var moduleURL = parentFS.resolveModule(null, path);
+      var moduleURL = parentFS.resolveModule(base, path);
       var moduleInfo = moduleURL ? packaging.getModuleInfo(moduleURL) : null;
       var moduleName = path;
 
       function maybeImportAdapterModule() {
         var adapterModuleName = moduleName + "-e10s-adapter";
-        var adapterModuleURL = parentFS.resolveModule(null,
+        var adapterModuleURL = parentFS.resolveModule(base,
                                                       adapterModuleName);
         var adapterModuleInfo = null;
         if (adapterModuleURL)
