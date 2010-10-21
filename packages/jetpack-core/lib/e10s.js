@@ -143,7 +143,11 @@ exports.createProcess = function createProcess(options) {
     function(name, base, path) {
       var parentFS = packaging.harnessService.loader.fs;
       var moduleURL = parentFS.resolveModule(base, path);
-      var moduleInfo = moduleURL ? packaging.getModuleInfo(moduleURL) : null;
+
+      if (!moduleURL)
+        return {code: "not-found"};
+
+      var moduleInfo = packaging.getModuleInfo(moduleURL);
       var moduleName = path;
 
       function maybeImportAdapterModule() {
@@ -153,6 +157,10 @@ exports.createProcess = function createProcess(options) {
         var adapterModuleInfo = null;
         if (adapterModuleURL)
           adapterModuleInfo = packaging.getModuleInfo(adapterModuleURL);
+
+        if (moduleInfo['e10s-adapter'] != adapterModuleURL)
+          throw new Error("Adapter module URL is " + adapterModuleURL +
+                          " but got " + moduleInfo['e10s-adapter']);
 
         if (adapterModuleInfo) {
           // e10s adapter found!
