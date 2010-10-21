@@ -134,3 +134,6 @@ exports.testAdapterOnlyModule = makeConsoleTest({
     ["quit", "OK"]
   ]
 });
+
+// TODO: Add tests for relative imports, or just figure out
+// how to run interoperablejs-read-only tests in e10s-land.
