@@ -38,7 +38,7 @@ exports.testManifest = function(test) {
       }
     },
     "superpower-client": {
-      code: 'require("superpower"); exports.main = function main(options, callbacks) { callbacks.quit(); };',
+      code: 'exports.main = function main(options, callbacks) { var superpower; try { superpower = require("superpower"); callbacks.quit("OK"); } catch (e) { callbacks.quit("FAIL"); } };',
       moduleInfo: {
         dependencies: {"superpower": {url: "superpower-e10s-adapter"}},
         needsChrome: false
@@ -90,8 +90,8 @@ exports.testManifest = function(test) {
   }
 
   var fakeConsole = {
-    log: function(msg) {
-      console.log("um", msg);
+    log: function() {
+      console.log.apply(console, arguments);
     },
     warn: function(msg) {
       warnings.push(msg);
@@ -132,13 +132,29 @@ exports.testManifest = function(test) {
 
   test.pass("OK");
 
-  var process = require("e10s").createProcess({
+  var e10s = require("e10s");
+  
+  var process = e10s.createProcess({
     packaging: fakePackaging,
     loader: loader,
     console: fakeConsole,
     quit: function(status) {
-      // TODO: Test that 'hacked' manifests trigger console warnings.
-      test.done();
+      test.assertEqual(status, "OK");
+      checkWarnings([]);
+      process.destroy();
+      fakeModules['superpower'].moduleInfo['e10s-adapter'] = 'somethingelse';
+      process = e10s.createProcess({
+        packaging: fakePackaging,
+        loader: loader,
+        console: fakeConsole,
+        quit: function(status) {
+          test.assertEqual(status, "FAIL");
+          checkWarnings(['Adapter module URL is superpower-e10s-adapter but expected somethingelse']);
+          process.destroy();
+          test.done();
+        }
+      });
+      process.sendMessage("startMain", "superpower-client");
     }
   });
 
