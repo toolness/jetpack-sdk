@@ -129,7 +129,11 @@ function makeRequire(base) {
          function(name) {
            module[name] = global[name];
          });
-  
+
+    // This is for running CommonJS compliance tests only.
+    if (sysPrint)
+      module.sys = { print: sysPrint };
+
     evalInSandbox(module, '//@line 1 "' + response.script.filename + 
                   '"\n' + response.script.contents);
   
@@ -137,6 +141,14 @@ function makeRequire(base) {
   };
   return require;
 }
+
+// This is for running CommonJS compliance tests only.
+var sysPrint = null;
+registerReceiver("enableSysPrint", function() {
+  sysPrint = function sysPrint(msg, type) {
+    sendMessage("sys:print", msg, type);
+  }
+});
 
 registerReceiver(
   "startMain",

@@ -135,5 +135,73 @@ exports.testAdapterOnlyModule = makeConsoleTest({
   ]
 });
 
-// TODO: Add tests for relative imports, or just figure out
-// how to run interoperablejs-read-only tests in e10s-land.
+exports.testCommonJSCompliance = function(test) {
+  let {Cc, Ci} = require("chrome");
+
+  var url = require("url");
+  var path = url.URL("interoperablejs-read-only/compliance/",
+                     __url__).toString();
+  path = url.toFilename(path);
+
+  var rootDir = Cc['@mozilla.org/file/local;1']
+                .createInstance(Ci.nsILocalFile);
+  rootDir.initWithPath(path);
+
+  var testDirs = [];
+  var enumer = rootDir.directoryEntries;
+  while (enumer.hasMoreElements()) {
+    var testDir = enumer.getNext().QueryInterface(Ci.nsIFile);
+    if (testDir.isDirectory() &&
+        testDir.leafName.charAt(0) != '.')
+      testDirs.push(testDir);
+  }
+
+  var sm = require("securable-module");
+
+  function runComplianceTest(testDir) {
+    console.info("running compliance test '" + testDir.leafName + "'");
+    var loader = new sm.Loader({
+      rootPath: testDir
+    });
+    var process = e10s.createProcess({
+      loader: loader,
+      packaging: {
+        getModuleInfo: function(url) {
+          return {
+            'e10s-adapter': null,
+            needsChrome: false
+          };
+        }
+      }
+    });
+    process.registerReceiver("sys:print", function(name, msg, type) {
+      switch (type) {
+      case "fail":
+        test.fail(msg);
+        break;
+      case "pass":
+        test.pass(msg);
+        break;
+      case "info":
+        console.info(msg);
+        if (msg == "DONE") {
+          console.info("Running next test.");
+          process.destroy();
+          runNextComplianceTest();
+        }
+      }
+    });
+    process.sendMessage("enableSysPrint");
+    process.sendMessage("startMain", "program");
+  }
+
+  function runNextComplianceTest() {
+    if (testDirs.length)
+      runComplianceTest(testDirs.pop());
+    else
+      test.done();
+  }
+
+  runNextComplianceTest();
+  test.waitUntilDone();
+};
