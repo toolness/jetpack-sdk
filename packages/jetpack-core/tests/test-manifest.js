@@ -1,67 +1,45 @@
-exports.testManifest = function(test) {
-  var nullModule = {
-    code: '',
+var nullModule = {
+  code: '',
+  moduleInfo: {
+    dependencies: {},
+    needsChrome: false
+  }
+};
+
+var fakeModules = {
+  "foo": {
+    code: 'require("bar");',
+    moduleInfo: {
+      dependencies: {"bar": {}},
+      needsChrome: false
+    }
+  },
+  "bar": nullModule,
+  "sorta-bad": {
+    code: 'require("f" + "oo")',
     moduleInfo: {
       dependencies: {},
       needsChrome: false
     }
-  };
+  },
+  "loads-wrong-thing": {
+    code: 'require("bar")',
+    moduleInfo: {
+      dependencies: {"bar": {url: "wrong"} },
+      needsChrome: false
+    }
+  },
+  "pure-evil": {
+    code: 'require("ch" + "rome")',
+    moduleInfo: {
+      dependencies: {},
+      needsChrome: false
+    }
+  },
+  "es5": nullModule,
+};
 
-  var fakeModules = {
-    "foo": {
-      code: 'require("bar");',
-      moduleInfo: {
-        dependencies: {"bar": {}},
-        needsChrome: false
-      }
-    },
-    "bar": nullModule,
-    "sorta-bad": {
-      code: 'require("f" + "oo")',
-      moduleInfo: {
-        dependencies: {},
-        needsChrome: false
-      }
-    },
-    "loads-wrong-thing": {
-      code: 'require("bar")',
-      moduleInfo: {
-        dependencies: {"bar": {url: "wrong"} },
-        needsChrome: false
-      }
-    },
-    "pure-evil": {
-      code: 'require("ch" + "rome")',
-      moduleInfo: {
-        dependencies: {},
-        needsChrome: false
-      }
-    },
-    "superpower-client": {
-      code: 'exports.main = function main(options, callbacks) { var superpower; try { superpower = require("superpower"); callbacks.quit("OK"); } catch (e) { callbacks.quit("FAIL"); } };',
-      moduleInfo: {
-        dependencies: {"superpower": {url: "superpower-e10s-adapter"}},
-        needsChrome: false
-      }
-    },
-    "superpower": {
-      code: 'require("chrome")',
-      moduleInfo: {
-        dependencies: {},
-        'e10s-adapter': 'superpower-e10s-adapter',
-        needsChrome: true
-      }
-    },
-    "superpower-e10s-adapter": {
-      code: 'exports.register = function(process) {}',
-      moduleInfo: {
-        dependencies: {},
-        needsChrome: false
-      }
-    },
-    "es5": nullModule,
-  };
-
+function createHarness(test, fakeModules) {
   var fakePackaging = {
     getModuleInfo: function getModuleInfo(basePath) {
       if (basePath in fakeModules)
@@ -108,6 +86,18 @@ exports.testManifest = function(test) {
     memory: memory
   });
 
+  return {
+    checkWarnings: checkWarnings,
+    fs: fakeFs,
+    console: fakeConsole,
+    loader: loader,
+    packaging: fakePackaging
+  };
+}
+
+exports.testManifest = function(test) {
+  let {checkWarnings, loader} = createHarness(test, fakeModules);
+  
   checkWarnings([], "init of loader does not trigger warnings");
   
   loader.require("foo"); // this triggers warnings
@@ -131,34 +121,91 @@ exports.testManifest = function(test) {
                 "chrome dep triggers warning");
 
   test.pass("OK");
+}
 
-  var e10s = require("e10s");
-  
+// E10s Manifest Tests
+
+var e10s = require("e10s");
+
+var e10sModules = {
+  "superpower-client": {
+    code: 'exports.main = ' + uneval(function main(options, callbacks) {
+      var superpower;
+      try {
+        superpower = require("superpower");
+        callbacks.quit("OK"); 
+      } catch (e) {
+        callbacks.quit("FAIL");
+      }
+    }),
+    moduleInfo: {
+      dependencies: {"superpower": {url: "superpower-e10s-adapter"}},
+      needsChrome: false
+    }
+  },
+  "superpower": {
+    code: 'require("chrome")',
+    moduleInfo: {
+      dependencies: {},
+      'e10s-adapter': 'superpower-e10s-adapter',
+      needsChrome: true
+    }
+  },
+  "superpower-e10s-adapter": {
+    code: 'exports.register = function(process) {}',
+    moduleInfo: {
+      dependencies: {},
+      needsChrome: false
+    }
+  },
+  "es5": nullModule
+};
+
+function copy(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function createE10sHarness(test, modules, onQuit) {
+  var harness = createHarness(test, modules);
+
   var process = e10s.createProcess({
-    packaging: fakePackaging,
-    loader: loader,
-    console: fakeConsole,
+    packaging: harness.packaging,
+    loader: harness.loader,
+    console: harness.console,
     quit: function(status) {
-      test.assertEqual(status, "OK");
-      checkWarnings([]);
+      onQuit(status);
       process.destroy();
-      fakeModules['superpower'].moduleInfo['e10s-adapter'] = 'somethingelse';
-      process = e10s.createProcess({
-        packaging: fakePackaging,
-        loader: loader,
-        console: fakeConsole,
-        quit: function(status) {
-          test.assertEqual(status, "FAIL");
-          checkWarnings(['Adapter module URL is superpower-e10s-adapter but expected somethingelse']);
-          process.destroy();
-          test.done();
-        }
-      });
-      process.sendMessage("startMain", "superpower-client");
+      test.done();
     }
   });
 
   test.waitUntilDone();
+  harness.process = process;
+  return harness;
+};
 
-  process.sendMessage("startMain", "superpower-client");
-}
+exports.testE10sAdapterWorks = function(test) {
+  var harness = createE10sHarness(test, e10sModules, function quit(status) {
+    test.assertEqual(status, "OK",
+                     "require('superpower') should work");
+    harness.checkWarnings([], "no warnings logged");
+  });
+
+  harness.process.sendMessage("startMain", "superpower-client");  
+};
+
+exports.testE10sAdapterDoesntWorkOnHackedManifest = function(test) {
+  var modules = copy(e10sModules);
+  modules['superpower'].moduleInfo['e10s-adapter'] = 'somethingelse';
+
+  var harness = createE10sHarness(test, modules, function quit(status) {
+    test.assertEqual(status, "FAIL",
+                     "require('superpower') should throw");
+    harness.checkWarnings([
+      'Adapter module URL is superpower-e10s-adapter but expected ' +
+      'somethingelse'
+    ], "warning logged when found adapter conflicts w/ manifest");
+  });
+
+  harness.process.sendMessage("startMain", "superpower-client");  
+};
