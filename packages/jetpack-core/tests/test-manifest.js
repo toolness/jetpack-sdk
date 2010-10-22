@@ -37,6 +37,28 @@ exports.testManifest = function(test) {
         needsChrome: false
       }
     },
+    "superpower-client": {
+      code: 'require("superpower"); exports.main = function main(options, callbacks) { callbacks.quit(); };',
+      moduleInfo: {
+        dependencies: {"superpower": {url: "superpower-e10s-adapter"}},
+        needsChrome: false
+      }
+    },
+    "superpower": {
+      code: 'require("chrome")',
+      moduleInfo: {
+        dependencies: {},
+        'e10s-adapter': 'superpower-e10s-adapter',
+        needsChrome: true
+      }
+    },
+    "superpower-e10s-adapter": {
+      code: 'exports.register = function(process) {}',
+      moduleInfo: {
+        dependencies: {},
+        needsChrome: false
+      }
+    },
     "es5": nullModule,
   };
 
@@ -67,14 +89,22 @@ exports.testManifest = function(test) {
     warnings = [];
   }
 
+  var fakeConsole = {
+    log: function(msg) {
+      console.log("um", msg);
+    },
+    warn: function(msg) {
+      warnings.push(msg);
+    },
+    exception: function(e) {
+      console.exception(e);
+    }
+  };
+
   var loader = require("cuddlefish").Loader({
     packaging: fakePackaging,
     fs: fakeFs,
-    console: {
-      warn: function(msg) {
-        warnings.push(msg);
-      }
-    },
+    console: fakeConsole,
     memory: memory
   });
 
@@ -101,4 +131,18 @@ exports.testManifest = function(test) {
                 "chrome dep triggers warning");
 
   test.pass("OK");
+
+  var process = require("e10s").createProcess({
+    packaging: fakePackaging,
+    loader: loader,
+    console: fakeConsole,
+    quit: function(status) {
+      // TODO: Test that 'hacked' manifests trigger console warnings.
+      test.done();
+    }
+  });
+
+  test.waitUntilDone();
+
+  process.sendMessage("startMain", "superpower-client");
 }

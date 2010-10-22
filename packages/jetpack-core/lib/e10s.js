@@ -73,10 +73,11 @@ function JetpackProcess() {
   };
 }
 
-function makeScriptFrom(moduleURL) {
+function makeScriptFrom(fs, moduleURL) {
+  // TODO: Why can't we just return fs.getFile(moduleURL) here?
   return {
     filename: moduleURL,
-    contents: file.read(url.toFilename(moduleURL))
+    contents: fs.getFile(moduleURL).contents
   };
 }
 
@@ -88,7 +89,8 @@ exports.createProcess = function createProcess(options) {
 
   var process = new JetpackProcess();
 
-  var console = options.console ? options.console : defaultConsole;
+  var console = options.console || defaultConsole;
+  var pkg = options.packaging || packaging;
 
   // Whenever our add-on is disabled or uninstalled, we want to
   // destroy the remote process.
@@ -141,13 +143,14 @@ exports.createProcess = function createProcess(options) {
   process.registerReceiver(
     "require",
     function(name, base, path) {
-      var parentFS = packaging.harnessService.loader.fs;
+      var loader = options.loader || require("parent-loader");
+      var parentFS = loader.fs;
       var moduleURL = parentFS.resolveModule(base, path);
 
       if (!moduleURL)
         return {code: "not-found"};
 
-      var moduleInfo = packaging.getModuleInfo(moduleURL);
+      var moduleInfo = pkg.getModuleInfo(moduleURL);
       var moduleName = path;
 
       function maybeImportAdapterModule() {
@@ -156,16 +159,18 @@ exports.createProcess = function createProcess(options) {
                                                       adapterModuleName);
         var adapterModuleInfo = null;
         if (adapterModuleURL)
-          adapterModuleInfo = packaging.getModuleInfo(adapterModuleURL);
+          adapterModuleInfo = pkg.getModuleInfo(adapterModuleURL);
 
-        if (moduleInfo['e10s-adapter'] != adapterModuleURL)
-          throw new Error("Adapter module URL is " + adapterModuleURL +
-                          " but got " + moduleInfo['e10s-adapter']);
+        if (moduleInfo['e10s-adapter'] != adapterModuleURL) {
+          console.warn("Adapter module URL is " + adapterModuleURL +
+                       " but expected " + moduleInfo['e10s-adapter']);
+          return {code: "error"};
+        }
 
         if (adapterModuleInfo) {
           // e10s adapter found!
           try {
-            require(adapterModuleName).register(process);
+            loader.require(adapterModuleName).register(process);
           } catch (e) {
             console.exception(e);
             return {code: "error"};
@@ -173,7 +178,7 @@ exports.createProcess = function createProcess(options) {
           return {
             code: "ok",
             needsMessaging: true,
-            script: makeScriptFrom(adapterModuleURL)
+            script: makeScriptFrom(parentFS, adapterModuleURL)
           };
         }
         
@@ -195,7 +200,7 @@ exports.createProcess = function createProcess(options) {
           return maybeImportAdapterModule() || {
             code: "ok",
             needsMessaging: false,
-            script: makeScriptFrom(moduleURL)
+            script: makeScriptFrom(parentFS, moduleURL)
           };
         }
       } else {
