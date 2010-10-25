@@ -194,6 +194,13 @@ exports.testE10sAdapterWorks = function(test) {
   harness.process.sendMessage("startMain", "superpower-client");  
 };
 
+// We want to test to make sure that the runtime behavior matches
+// the behavior dictated by the manifest. The most obvious way
+// this could diverge is if the hacker adds files to the XPI that
+// causes the loader to find a different e10s adapter than the
+// one the manifest specifies. Since we don't have an XPI in this
+// case, though, it's easier to just hack the manifest to point
+// at a different file; the same code is tested.
 exports.testE10sAdapterDoesntWorkOnHackedManifest = function(test) {
   var modules = copy(e10sModules);
   modules['superpower'].moduleInfo['e10s-adapter'] = 'somethingelse';
