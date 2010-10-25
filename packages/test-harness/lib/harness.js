@@ -281,9 +281,13 @@ function nextIteration(tests) {
     iterationsLeft--;
   }
   if (iterationsLeft)
-    sandbox.require("unit-test").findAndRunTests({dirs: dirs,
-                                                  filter: filter,
-                                                  onDone: nextIteration});
+    sandbox.require("unit-test").findAndRunTests({
+      enableE10s: packaging.enableE10s,
+      fs: sandbox.fs,
+      dirs: dirs,
+      filter: filter,
+      onDone: nextIteration
+    });
   else
     require("timer").setTimeout(cleanup, 0);
 }
