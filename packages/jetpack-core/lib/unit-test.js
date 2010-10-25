@@ -38,10 +38,13 @@ var timer = require("timer");
 
 exports.findAndRunTests = function findAndRunTests(options) {
   var TestFinder = require("unit-test-finder").TestFinder;
-  var finder = new TestFinder(options.dirs, options.filter);
+  var finder = new TestFinder(options.dirs, options.filter, options.enableE10s);
   var runner = new TestRunner({fs: options.fs});
-  runner.startMany({tests: finder.findTests(),
-                    onDone: options.onDone});
+  finder.findTests(
+    function (tests) {
+      runner.startMany({tests: tests,
+                        onDone: options.onDone});
+    });
 };
 
 var TestRunner = exports.TestRunner = function TestRunner(options) {

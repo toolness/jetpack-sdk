@@ -42,10 +42,11 @@ require("chrome");
 
 var file = require("file");
 
-var TestFinder = exports.TestFinder = function TestFinder(dirs, filter) {
+var TestFinder = exports.TestFinder = function TestFinder(dirs, filter, enableE10s) {
   memory.track(this);
   this.dirs = dirs;
   this.filter = filter;
+  this.enableE10s = enableE10s;
 };
 
 TestFinder.prototype = {
@@ -57,10 +58,11 @@ TestFinder.prototype = {
     return runTest;
   },
 
-  findTests: function findTests() {
+  findTests: function findTests(cb) {
     var self = this;
     var tests = [];
     var filterRegex = this.filter ? new RegExp(this.filter) : null;
+    var remoteSuites = [];
 
     this.dirs.forEach(
       function(dir) {
@@ -71,14 +73,31 @@ TestFinder.prototype = {
 
         suites.forEach(
           function(suite) {
+            var loader = require("parent-loader");
+            var url = loader.fs.resolveModule(null, suite);
+            var moduleInfo = packaging.getModuleInfo(url);
             var module = require(suite);
             for (name in module)
                 tests.push({
                   testFunction: self._makeTest(suite, name, module[name]),
                   name: suite + "." + name
                 });
+            if (!moduleInfo.needsChrome)
+              remoteSuites.push(suite);
           });
       });
-    return tests;
+
+    if (this.enableE10s && remoteSuites.length > 0) {
+      var process = require("e10s").createProcess();
+      var finderHandle = process.createHandle();
+      finderHandle.onTestsFound = function(testsFound) {
+        cb(tests.concat(testsFound));
+      };
+      process.sendMessage("startMain", "find-tests", {
+        suites: remoteSuites,
+        finderHandle: finderHandle
+      });
+    } else
+      cb(tests);
   }
 };
