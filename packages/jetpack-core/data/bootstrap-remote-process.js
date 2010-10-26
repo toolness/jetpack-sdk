@@ -111,12 +111,12 @@ function makeRequire(base) {
     }
 
     var module = createSandbox();
-    if (!ES5 && !loadingES5) {
+    if (!sysPrint && !ES5 && !loadingES5) {
       loadingES5 = true;
       ES5 = makeRequire(null)("es5");
     }
 
-    if (ES5 && 'init' in ES5) {
+    if (!sysPrint && ES5 && 'init' in ES5) {
       ES5.init(module.Object, module.Array, module.Function);
       module.Iterator = (function(DefaultIterator) {
         return function Iterator(obj, keysOnly) {
