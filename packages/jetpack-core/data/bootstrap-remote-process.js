@@ -111,7 +111,22 @@ function makeRequire(base) {
     }
 
     var module = createSandbox();
-  
+    if (!ES5 && !loadingES5) {
+      loadingES5 = true;
+      ES5 = makeRequire(null)("es5");
+    }
+
+    if (ES5 && 'init' in ES5) {
+      ES5.init(module.Object, module.Array, module.Function);
+      module.Iterator = (function(DefaultIterator) {
+        return function Iterator(obj, keysOnly) {
+          if ("__iterator__" in obj && !keysOnly)
+            return obj.__iterator__.call(obj, false, true);
+          return DefaultIterator(obj, keysOnly);
+        };
+      })(module.Iterator);
+    }
+
     modules[response.script.filename] = resolvedNames[name] = module;
   
     // Set up the globals of the sandbox.
@@ -167,3 +182,6 @@ registerReceiver(
     if ('main' in main)
       main.main(options, callbacks);
   });
+
+var ES5;
+var loadingES5 = false;
