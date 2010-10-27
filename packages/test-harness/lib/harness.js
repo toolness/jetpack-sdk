@@ -282,7 +282,8 @@ function nextIteration(tests) {
   }
   if (iterationsLeft)
     sandbox.require("unit-test").findAndRunTests({
-      enableE10s: packaging.enableE10s,
+      testOutOfProcess: packaging.enableE10s,
+      testInProcess: true,
       fs: sandbox.fs,
       dirs: dirs,
       filter: filter,

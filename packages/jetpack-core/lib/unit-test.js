@@ -38,7 +38,12 @@ var timer = require("timer");
 
 exports.findAndRunTests = function findAndRunTests(options) {
   var TestFinder = require("unit-test-finder").TestFinder;
-  var finder = new TestFinder(options.dirs, options.filter, options.enableE10s);
+  var finder = new TestFinder({
+    dirs: options.dirs,
+    filter: options.filter,
+    testInProcess: options.testInProcess,
+    testOutOfProcess: options.testOutOfProcess
+  });
   var runner = new TestRunner({fs: options.fs});
   finder.findTests(
     function (tests) {

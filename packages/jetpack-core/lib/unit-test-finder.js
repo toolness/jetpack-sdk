@@ -42,11 +42,12 @@ require("chrome");
 
 var file = require("file");
 
-var TestFinder = exports.TestFinder = function TestFinder(dirs, filter, enableE10s) {
+var TestFinder = exports.TestFinder = function TestFinder(options) {
   memory.track(this);
-  this.dirs = dirs;
-  this.filter = filter;
-  this.enableE10s = enableE10s;
+  this.dirs = options.dirs || [];
+  this.filter = options.filter || function() { return true; };
+  this.testInProcess = options.testInProcess === false ? false : true;
+  this.testOutOfProcess = options.testOutOfProcess === true ? true : false;
 };
 
 TestFinder.prototype = {
@@ -61,15 +62,22 @@ TestFinder.prototype = {
   findTests: function findTests(cb) {
     var self = this;
     var tests = [];
-    var filterRegex = this.filter ? new RegExp(this.filter) : null;
     var remoteSuites = [];
+    var filter;
+
+    if (typeof(this.filter) == "string") {
+      var filterRegex = new RegExp(self.filter);
+      filter = function(name) {
+        return filterRegex.test(name);
+      };
+    } else if (typeof(this.filter) == "function")
+      filter = this.filter;
 
     this.dirs.forEach(
       function(dir) {
         var suites = [name.slice(0, -3)
                       for each (name in file.list(dir))
-                      if (/^test-.*\.js$/.test(name) &&
-                          (!filterRegex || filterRegex.test(name)))];
+                      if (/^test-.*\.js$/.test(name) && filter(name))];
 
         suites.forEach(
           function(suite) {
@@ -77,17 +85,18 @@ TestFinder.prototype = {
             var url = loader.fs.resolveModule(null, suite);
             var moduleInfo = packaging.getModuleInfo(url);
             var module = require(suite);
-            for (name in module)
-                tests.push({
-                  testFunction: self._makeTest(suite, name, module[name]),
-                  name: suite + "." + name
-                });
+            if (self.testInProcess)
+              for (name in module)
+                  tests.push({
+                    testFunction: self._makeTest(suite, name, module[name]),
+                    name: suite + "." + name
+                  });
             if (!moduleInfo.needsChrome)
               remoteSuites.push(suite);
           });
       });
 
-    if (this.enableE10s && remoteSuites.length > 0) {
+    if (this.testOutOfProcess && remoteSuites.length > 0) {
       var process = require("e10s").createProcess();
       var finderHandle = process.createHandle();
       finderHandle.onTestsFound = function(testsFound) {
