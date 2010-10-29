@@ -12,7 +12,8 @@ const E10S_COMPATIBLE_TEST_SUITES = [
   'test-es5.js',
   'test-traits-core.js',
   'test-traits.js',
-  'test-list.js'
+  'test-list.js',
+  'test-self.js'
 ];
 
 exports.runE10SCompatibleTestSuites = function(test) {
