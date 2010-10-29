@@ -150,10 +150,10 @@ TestRunner.prototype = {
         errorMessage = e;
       else
         errorMessage = e.message;
-      if (typeof(predicate) == "object")
-        this.assertMatches(errorMessage, predicate, message);
-      else
+      if (typeof(predicate) == "string")
         this.assertEqual(errorMessage, predicate, message);
+      else
+        this.assertMatches(errorMessage, predicate, message);
     }
   },
 
