@@ -503,7 +503,7 @@ def run(arguments=sys.argv[1:], target_cfg=None, pkg_cfg=None,
     # TODO: Consider keeping a cache of dynamic UUIDs, based
     # on absolute filesystem pathname, in the root directory
     # or something.
-    if command in ('xpi', 'run'):
+    if command in ('xpi', 'run') and not options.app == "xulrunner":
         from cuddlefish.preflight import preflight_config
         if target_cfg_json:
             config_was_ok, modified = preflight_config(
@@ -532,9 +532,11 @@ def run(arguments=sys.argv[1:], target_cfg=None, pkg_cfg=None,
         # JetpackID for the add-on ID and the XPCOM contract ID.
         import uuid
         harness_guid = str(uuid.uuid4())
-
     else:
         if options.use_server:
+            if options.app == "xulrunner":
+                raise Exception("--use-server doesn't currently work "
+                                "with XULRunner.")
             harness_guid = '2974c5b5-b671-46f8-a4bb-63c6eca6261b'
         else:
             harness_guid = '6724fc1b-3ec4-40e2-8583-8061088b3185'

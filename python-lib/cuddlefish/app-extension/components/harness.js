@@ -264,7 +264,7 @@ function buildHarnessService(rootFileSpec, dump, logError,
   HarnessService.prototype = {
     get classDescription() {
       // This needs to be unique, lest we regress bug 554489.
-      return "Harness Service for " + options.bootstrap.contractID;
+      return "Harness_Service_for_" + options.bootstrap.contractID;
     },
 
     get contractID() { return options.bootstrap.contractID; },
@@ -567,6 +567,28 @@ function getDefaults(rootFileSpec) {
 
   return {options: options, onQuit: onQuit, dump: print,
           logError: logError};
+}
+
+// This is used by XULRunner when running Gecko 2.0 or above.
+
+function NSGetFactory(classID) {
+  var defaultsDir = Cc["@mozilla.org/file/directory_service;1"]
+                    .getService(Ci.nsIProperties)
+                    .get("DefRt", Ci.nsIFile);
+  var rootFileSpec = defaultsDir.parent;
+  var defaults = getDefaults(rootFileSpec);
+  var expectedClassID = Components.ID(defaults.options.bootstrap.classID);
+
+  if (!classID.equals(expectedClassID))
+    throw new Error("Expected classID " + expectedClassID + " but got " +
+                    classID);
+
+  var HarnessService = buildHarnessService(rootFileSpec,
+                                           defaults.dump,
+                                           defaults.logError,
+                                           defaults.onQuit,
+                                           defaults.options);
+  return HarnessService.prototype._xpcom_factory;
 }
 
 // Everything below is only used on Gecko 1.9.2 or below.
