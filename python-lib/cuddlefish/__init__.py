@@ -534,9 +534,6 @@ def run(arguments=sys.argv[1:], target_cfg=None, pkg_cfg=None,
         harness_guid = str(uuid.uuid4())
     else:
         if options.use_server:
-            if options.app == "xulrunner":
-                raise Exception("--use-server doesn't currently work "
-                                "with XULRunner.")
             harness_guid = '2974c5b5-b671-46f8-a4bb-63c6eca6261b'
         else:
             harness_guid = '6724fc1b-3ec4-40e2-8583-8061088b3185'
