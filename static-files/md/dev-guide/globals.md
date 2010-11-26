@@ -15,7 +15,8 @@ For an introduction to CommonJS modules, see the
 ## CommonJS Globals ##
 
 Code also has access to the `require` and `exports` globals
-as specified by version 1.0 of the [CommonJS Module Specification].
+as specified by version 1.0 of the [CommonJS Module Specification],
+and it supports `define` from the [CommonJS Asynchronous Module Proposal].
 
 ## HTML5 Globals ##
 
@@ -68,4 +69,5 @@ Inserts a stack trace into the console at the point this function is called.
   [HTML5]: http://dev.w3.org/html5/spec/Overview.html
   [JavaScript 1.8.1]: https://developer.mozilla.org/En/New_in_JavaScript_1.8.1
   [CommonJS Module Specification]: http://wiki.commonjs.org/wiki/Modules/1.0
+  [CommonJS Asynchronous Module Proposal]: http://wiki.commonjs.org/wiki/Modules/AsynchronousDefinition
   [Package Specification]: #guide/package-spec
